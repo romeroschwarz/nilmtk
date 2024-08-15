@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import datetime
 from IPython.display import clear_output
+import os
 
 
 class API():
@@ -43,6 +44,7 @@ class API():
         self.display_predictions = params.get('display_predictions', False)
         self.DROP_ALL_NANS = params.get("DROP_ALL_NANS", True)
         self.site_only = params.get('site_only',False)
+        self.output_dir = params.get('output_dir',None)
         self.experiment()
         
 
@@ -272,6 +274,25 @@ class API():
                 self.test_mains = [test_mains]
                 self.storing_key = str(dataset) + "_" + str(building) 
                 self.call_predict(self.classifiers, test.metadata["timezone"])
+
+                #If applicable, write all predictions/ground truth powers to specified directory
+                if self.output_dir != None:
+
+                    #If the specified directory does not exist, create it
+                    if not os.path.exists(self.output_dir):
+                        os.makedirs(self.output_dir)
+
+                    desc_string = "_".join((dataset,"building" + str(building),d[dataset]['buildings'][building]['start_time'],d[dataset]['buildings'][building]['end_time']))
+
+                    gt_path = os.path.join(self.output_dir,"gt_" + desc_string + ".csv")
+                    print("Writing ground truth power to " + gt_path)
+                    self.gt_overall.to_csv(gt_path,index_label="time")
+
+                    #This trusts that names of disaggregators are also valid filenames
+                    for name, pred in self.pred_overall.items():
+                        path = os.path.join(self.output_dir, name +"_" + desc_string + "_predicted.csv")
+                        print("Writing " + name + " predicted values to " + path)
+                        pred.to_csv(path,index_label="time")
 
 
     def dropna(self,mains_df, appliance_dfs=[]):
